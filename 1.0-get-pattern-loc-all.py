@@ -270,11 +270,11 @@ if __name__=='__main__':
 	#rename
 	# create 1st and 2nd subfolders
 	prj_folder = os.getcwd()
-	#prj_tree = create_folders(prj_folder)
-	prj_tree = ProjectFolders(prj_folder)
+	prj_tree = create_folders(prj_folder)
+	#prj_tree = ProjectFolders(prj_folder)
 	
 	prj_name = fullpath2last_folder(prj_tree.home)
-	"""
+	#"""
 	#Step 1	Convert fastq to fasta
 	print "Step 1	Convert fastq to fasta"
 	infile = glob.glob("%s/*.fastq"%(prj_tree.origin))[0]
@@ -292,8 +292,8 @@ if __name__=='__main__':
 		handle.close()
 		print "Wrote %i records to %s" % (count, filename)
 	files_num = i+1
-	"""
-	'''
+	#"""
+	#'''
 	#Step 5: Mapping, Multiple processing
 	print "Begin IgBLAST..."
 	prepare_IgBLAST_jobs(prj_name, prj_tree)
@@ -308,9 +308,9 @@ if __name__=='__main__':
 	IgBLAST_pool.close()
 	IgBLAST_pool.join()
 	print 'All subprocesses done.'
-	'''
+	#'''
 	
-	"""
+	#"""
 	igblast_result_files = glob.glob("%s/IgBLAST_result_*.txt"%(prj_tree.igblast_data))
 	pool = Pool()
 	for igblast_result_file in igblast_result_files:
@@ -323,12 +323,12 @@ if __name__=='__main__':
 	os.system("cat %s/IgBLAST_result_*_get_assignment_info.txt > %s/%s_get_assignment_info.txt"%(prj_tree.igblast_data, prj_tree.igblast_data, prj_name))
 	os.system("cat %s/IgBLAST_result_*_get_recombanation_info.txt > %s/%s_get_recombanation_info.txt"%(prj_tree.igblast_data, prj_tree.igblast_data, prj_name))
 	
-	"""
+	#"""
 	#files_num = 128
 	#for f_idex in range(1, files_num+1):
 	#	igblast_result_file = "%s/IgBLAST_result_%s.txt"%(prj_tree.igblast_data,f_idex)
 	
-	"""
+	#"""
 	#Step 3: detect UMI, split file across UMI 
 	recombanation_info_file = "%s/%s_get_recombanation_info.txt"%(prj_tree.igblast_data, prj_name)
 	recombanation_info_dict = load_recombanation_info_dict(recombanation_info_file)
@@ -348,9 +348,9 @@ if __name__=='__main__':
 	p1.close()
 	p1.join()
 	print 'Detect primer: All subprocesses done.'
-	"""
+	#"""
 	
-	'''
+	#'''
 	#Step 4
 	infiles = glob.glob("%s/%s*-get-primer"%(prj_tree.data,prj_name))
 	p3 = Pool()
@@ -364,10 +364,10 @@ if __name__=='__main__':
 	p3.close()
 	p3.join()
 	print 'Detect UMI: All subprocesses done.'
-	'''
+	#'''
 	#"""
 	# Plot UMI_group_frequency
-	UMI_lengths = ["","_6_8"]
+	UMI_lengths = ["","_6_8","_8"]
 	for UMI_length in UMI_lengths:
 		UMI_count_files = glob.glob("%s/%s_*-get-primer-count_UMI%s.txt"%(prj_tree.data, prj_name, UMI_length))
 		UMI_group_dict, total_reads_number, size_list = {}, 0, []

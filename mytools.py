@@ -8,7 +8,7 @@ Copyright (c) 2011 My company. All rights reserved.
 """
 import sys, os, csv, re, glob
 from common_info import *
-from Bio import Seq
+from Bio.Seq import Seq
 from Bio import AlignIO, SeqIO
 from Bio.SeqRecord import SeqRecord
 from Bio.Align.Applications import ClustalwCommandline
@@ -177,7 +177,24 @@ class ProjectFolders:
 def donothing():
 	pass;
 
-
+#
+# -- BEGIN -- General methods
+#
+def number_statistics(per):
+	unique = []
+	for n in per:
+		flag=1
+		for i in range(0,len(unique)):
+			if n == unique[i][0]:
+				unique[i][1] += 1
+				flag=0
+				break
+		if flag==1:
+			unique.append([n,1])
+	return unique
+#
+# -- BEGIN -- General methods
+#
 
 #
 # -- BEGIN -- String methods
@@ -271,7 +288,10 @@ def getParas(my_dict, *args):
 #
 # -- BEGIN --  folder and file methods
 #
-
+def get_subfolders(f):
+	return sorted([x for x in os.listdir(f) if os.path.isdir(x)])
+	
+	
 def sort_files_by_size(fs):
 	"""
 	sort files based on size: from smaller to larger
@@ -328,7 +348,8 @@ def create_folders(folder):
 	
 	for subfolder in FIRST_LEVEL_SUBFOLDERS:
 		try:
-			shutil.rmtree("%s/%s/" %(folder, subfolder))
+			#shutil.rmtree("%s/%s/" %(folder, subfolder))
+			os.system("rm -rf %s/%s/" %(folder, subfolder))
 		except:
 			print "Can't delete existed subfolder: %s"%subfolder
 			pass
@@ -345,6 +366,7 @@ def create_folders(folder):
 	for subfolder in SECOND_LEVEL_SUBFOLDERS:
 		try:
 			#shutil.rmtree("%s/%s/" %(folder, subfolder))
+			os.system("rm -rf %s/%s/" %(folder, subfolder))
 			create_subfolder(folder, subfolder)
 			
 		except:		# may need to delete old folders
@@ -570,9 +592,9 @@ def prepare_IgBLAST_jobs(prj_name, prj_tree):
 		handle = open("%s/IgBLAST_%s.sh" %(prj_tree.jobs,f_ind), "w")
 		handle.write("#!/bin/bash\n")
 		handle.write("#BSUB -J %s_%s\n" %(prj_name,f_ind))
-		handle.write("#BSUB -n 1\n")
+		handle.write("#BSUB -n 2\n")
 		#handle.write("#BSUB -n %s\n"%(infile_number*4))
-		handle.write("#BSUB -R %s\n"%("\"span[ptile=1]\""))
+		handle.write("#BSUB -R %s\n"%("\"span[ptile=2]\""))
 		handle.write("#BSUB -o output_%J\n")
 		handle.write("#BSUB -e errput_%J\n")
 		handle.write("#BSUB -q cpu\n")
@@ -582,7 +604,7 @@ def prepare_IgBLAST_jobs(prj_name, prj_tree):
 		-outfmt '7 qseqid sseqid pident length mismatch gapopen gaps qstart qend sstart send evalue \
 		bitscore qlen slen qseq sseq score frames qframe sframe positive ppos btop staxids stitle \
 		sstrand qcovs qcovhsp' -num_alignments_V 1 -num_alignments_D 1 -num_alignments_J 1 -out \
-		%s/IgBLAST_result_%s &"%(infile, prj_tree.igblast_data, f_ind))
+		%s/IgBLAST_result_%s.txt &"%(infile, prj_tree.igblast_data, f_ind))
 		handle.close()
 
 #
@@ -642,6 +664,10 @@ def load_quals(f):
 #
 # -- BEGIN -- FASTA file and sequence methods
 #
+
+def SeqRecord_gernerator(seq_id, seq, des):
+	result_seq = SeqRecord(Seq(seq), id = seq_id, description = des)
+	return result_seq
 def batch_iterator(iterator, batch_size) :
 	"""Returns lists of length batch_size.
 	This can be used on any iterator, for example to batch up
@@ -1201,8 +1227,7 @@ def load_single_fasta_v2(f, abid):
 			return ab
 	return None
 
-def get_subfolders(f):
-	return sorted([x for x in os.listdir(f) if os.path.isdir(x)])
+
 	
 #
 # -- END -- FASTA file and sequence methods 
