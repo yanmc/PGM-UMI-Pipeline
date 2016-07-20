@@ -10,11 +10,11 @@ Usage: misc-get-pattern-loc.py -i infile -r referencefile -o outfile
 
 
 """
-import sys, os, csv, re, glob, copy, subprocess, time
+import sys, os, csv, re, glob, copy, subprocess, time, multiprocessing
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from multiprocessing import Pool
+from multiprocessing import Pool, Process, Manager, Semaphore
 import matplotlib.pyplot as plt
 from mytools import *
 def load_recombanation_info_dict(handle):
@@ -32,20 +32,19 @@ def load_recombanation_info_dict(handle):
 			recombanation_info_dict[line[0]] = "L"
 	return recombanation_info_dict
 def get_primer_and_cut_before_UMI(handle,recombanation_info_dict):
-	
 	file_handle = open("%s"%handle, 'rU')
 	fname = retrieve_name_body(handle)
 	some_error_reads_file = open("%s/%s_error_reads_file.txt"%(prj_tree.analysis, fname), "w")
-	cut_berfore_UMI_fasta = open("%s/%s_cut_berfore_UMI.fasta"%(prj_tree.split, fname), "w")
+	cut_berfore_UMI_fasta = open("%s/%s_cut_before_UMI.fasta"%(prj_tree.tmp, fname), "w")
 	outfile  = csv.writer(open("%s/%s-get-primer"%(prj_tree.data,fname),'w'),delimiter = '\t')
 	outfile1 = csv.writer(open("%s/%s-get-IgG-primer"%(prj_tree.tmp,fname),'w'),delimiter = '\t')
 	outfile2 = csv.writer(open("%s/%s-get-IgK-primer"%(prj_tree.tmp,fname),'w'),delimiter = '\t')
 	outfile3 = csv.writer(open("%s/%s-get-IgM-primer"%(prj_tree.tmp,fname),'w'),delimiter = '\t')
 	outfile4 = csv.writer(open("%s/%s-get-IgL-primer"%(prj_tree.tmp,fname),'w'),delimiter = '\t')
-	#outfile1.writerow(['id','primer','start','end','UMI',"Seq"])
-	#outfile2.writerow(['id','primer','start','end','UMI',"Seq"])
-	#outfile3.writerow(['id','primer','start','end','UMI',"Seq"])
-	#outfile4.writerow(['id','primer','start','end','UMI',"Seq"])
+	#outfile1.writerow(['id','primer','start','end','UMI',"Seq","Read_type"])
+	#outfile2.writerow(['id','primer','start','end','UMI',"Seq","Read_type"])
+	#outfile3.writerow(['id','primer','start','end','UMI',"Seq","Read_type"])
+	#outfile4.writerow(['id','primer','start','end','UMI',"Seq","Read_type"])
 	IGG_primer = 'AAGACCGATGGGCCCTTGGTGGA'
 	IGK_primer = 'AAGACAGATGGTGCAGCCACAGTTC'
 	IGM_primer = 'AAGGGTTGGGGCGGATGCACTCC'
@@ -59,121 +58,55 @@ def get_primer_and_cut_before_UMI(handle,recombanation_info_dict):
 		loc3 = re.finditer('AAGGGTTGGGGCGGATGCACTCC',record.seq.tostring(),re.I)
 		loc4 = re.finditer('CCTTGTTGGCTTG(A|G)AGCTCCTCAGAGGAGG',record.seq.tostring(),re.I)
 		try:
-			read_type = recombanation_info_dict[str(record.id)]
+			Read_type = recombanation_info_dict[str(record.id)]
 		except:
-			read_type = 0
-			#print "Reads: %s is no type!"%record.id
-		
-		
-		#sys.exit(0)
-		if record.id == "UDO6O:02163:01937":
-			print record.id, read_type
-			for i in loc1:
-				print 1,i
-			
-			for i in loc2:
-				print 2,i
-				
-			
-			for i in loc3:
-				print 3,i
-			
-			for i in loc4:
-				print 4,i
-		if read_type == "H":
-			for index, i in enumerate(loc1):
-				if index == 0 and i.span()[0]-8 >= 0:
-					#print type(i.group()),i.span()
-					outfile1.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					
-				if index == 0 and i.span()[0]-8 < 0:
-					#print type(i.group()),i.span()
-					outfile1.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])
-			SeqIO.write(SeqRecord_gernerator("IGG_"+record.id, record.seq.tostring(), IGG_primer), cut_berfore_UMI_fasta, "fasta")
-			for index, i in enumerate(loc3):
-				if index == 0 and i.span()[0]-8 >= 0:
-					#print type(i.group()),i.span()
-					outfile3.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					
-				if index == 0 and i.span()[0]-8 < 0:
-					#print type(i.group()),i.span()
-					outfile3.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])
-			SeqIO.write(SeqRecord_gernerator("IGM_"+record.id, record.seq.tostring(), IGM_primer), cut_berfore_UMI_fasta, "fasta")
-		elif read_type == "K":
-			for index, i in enumerate(loc2):
-				if index == 0  and i.span()[0]-8 >= 0:
-					
-					#print type(i.group()),i.span()
-					outfile2.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					
-				if index == 0 and i.span()[0]-8 < 0:
-					#print type(i.group()),i.span()
-					outfile2.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])	
-			SeqIO.write(SeqRecord_gernerator("IGK_"+record.id, record.seq.tostring(), IGK_primer), cut_berfore_UMI_fasta, "fasta")
-		elif read_type == "L":
-			for index, i in enumerate(loc4):
-				if index == 0 and i.span()[0]-8 >= 0:
-					#print type(i.group()),i.span()
-					outfile4.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					
-				if index == 0 and i.span()[0]-8 < 0:
-					#print type(i.group()),i.span()
-					outfile4.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])
-			SeqIO.write(SeqRecord_gernerator("IGL_"+record.id, record.seq.tostring(), IGL_primer), cut_berfore_UMI_fasta, "fasta")
-		else:
-			for index, i in enumerate(loc1):
-				if index == 0 and i.span()[0]-8 >= 0:
-					#print type(i.group()),i.span()
-					outfile1.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					SeqIO.write(SeqRecord_gernerator("IGG_"+record.id, record.seq.tostring()[i.span()[0]-8:], IGG_primer), cut_berfore_UMI_fasta, "fasta")
-				if index == 0 and i.span()[0]-8 < 0:
-					#print type(i.group()),i.span()
-					outfile1.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])
-					SeqIO.write(SeqRecord_gernerator("IGG_"+record.id, record.seq.tostring(), IGG_primer), cut_berfore_UMI_fasta, "fasta")
-			for index, i in enumerate(loc2):
-				if index == 0  and i.span()[0]-8 >= 0:
-					#print type(i.group()),i.span()
-					outfile2.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					SeqIO.write(SeqRecord_gernerator("IGK_"+record.id, record.seq.tostring()[i.span()[0]-8:], IGK_primer), cut_berfore_UMI_fasta, "fasta")
-				if index == 0 and i.span()[0]-8 < 0:
-					#print type(i.group()),i.span()
-					outfile2.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])	
-					SeqIO.write(SeqRecord_gernerator("IGK_"+record.id, record.seq.tostring(), IGK_primer), cut_berfore_UMI_fasta, "fasta")
-			for index, i in enumerate(loc3):
-				if index == 0 and i.span()[0]-8 >= 0:
-					#print type(i.group()),i.span()
-					outfile3.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					SeqIO.write(SeqRecord_gernerator("IGM_"+record.id, record.seq.tostring()[i.span()[0]-8:], IGM_primer), cut_berfore_UMI_fasta, "fasta")
-				if index == 0 and i.span()[0]-8 < 0:
-					#print type(i.group()),i.span()
-					outfile3.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])
-					SeqIO.write(SeqRecord_gernerator("IGM_"+record.id, record.seq.tostring(), IGM_primer), cut_berfore_UMI_fasta, "fasta")
-			for index, i in enumerate(loc4):
-				if index == 0 and i.span()[0]-8 >= 0:
-					#print type(i.group()),i.span()
-					outfile4.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring()])
-					SeqIO.write(SeqRecord_gernerator("IGL_"+record.id, record.seq.tostring()[i.span()[0]-8:], IGL_primer), cut_berfore_UMI_fasta, "fasta")
-				if index == 0 and i.span()[0]-8 < 0:
-					#print type(i.group()),i.span()
-					outfile4.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])
-					outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring()])
-					SeqIO.write(SeqRecord_gernerator("IGL_"+record.id, record.seq.tostring(), IGL_primer), cut_berfore_UMI_fasta, "fasta")
-		
+			Read_type = 'No_annotation'
+			#print "Reads: %s is no type!"%record.id		
+		for index, i in enumerate(loc1):
+			if index == 0 and i.span()[0]-8 >= 0:
+				#print type(i.group()),i.span()
+				outfile1.writerow([record.id, i.group(),i.span()[0], i.span()[1], record.seq.tostring()[i.span()[0]-8:i.span()[0]], record.seq.tostring(), Read_type])
+				outfile.writerow([record.id, i.group(),i.span()[0], i.span()[1], record.seq.tostring()[i.span()[0]-8:i.span()[0]], record.seq.tostring(), Read_type])
+				SeqIO.write(SeqRecord_gernerator("IGG_"+record.id, record.seq.tostring()[i.span()[0]-8:], Read_type), cut_berfore_UMI_fasta, "fasta")
+			if index == 0 and i.span()[0]-8 < 0:
+				#print type(i.group()),i.span()
+				outfile1.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring(), Read_type])
+				outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring(), Read_type])
+				SeqIO.write(SeqRecord_gernerator("IGG_"+record.id, record.seq.tostring()[:], Read_type), cut_berfore_UMI_fasta, "fasta")
+		for index, i in enumerate(loc3):
+			if index == 0 and i.span()[0]-8 >= 0:
+				#print type(i.group()),i.span()
+				outfile3.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring(), Read_type])
+				outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring(), Read_type])
+				SeqIO.write(SeqRecord_gernerator("IGM_"+record.id, record.seq.tostring()[i.span()[0]-8:], Read_type), cut_berfore_UMI_fasta, "fasta")
+			if index == 0 and i.span()[0]-8 < 0:
+				#print type(i.group()),i.span()
+				outfile3.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring(), Read_type])
+				outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring(), Read_type])
+				SeqIO.write(SeqRecord_gernerator("IGM_"+record.id, record.seq.tostring()[:], Read_type), cut_berfore_UMI_fasta, "fasta")
+		for index, i in enumerate(loc2):
+			if index == 0  and i.span()[0]-8 >= 0:
+				#print type(i.group()),i.span()
+				outfile2.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring(), Read_type])
+				outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring(), Read_type])
+				SeqIO.write(SeqRecord_gernerator("IGK_"+record.id, record.seq.tostring()[i.span()[0]-8:], Read_type), cut_berfore_UMI_fasta, "fasta")
+			if index == 0 and i.span()[0]-8 < 0:
+				#print type(i.group()),i.span()
+				outfile2.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring(), Read_type])
+				outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring(), Read_type])	
+				SeqIO.write(SeqRecord_gernerator("IGK_"+record.id, record.seq.tostring()[:], Read_type), cut_berfore_UMI_fasta, "fasta")
+		for index, i in enumerate(loc4):
+			if index == 0 and i.span()[0]-8 >= 0:
+				#print type(i.group()),i.span()
+				outfile4.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring(), Read_type])
+				outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[i.span()[0]-8:i.span()[0]],record.seq.tostring(), Read_type])
+				SeqIO.write(SeqRecord_gernerator("IGL_"+record.id, record.seq.tostring()[i.span()[0]-8:], Read_type), cut_berfore_UMI_fasta, "fasta")
+			if index == 0 and i.span()[0]-8 < 0:
+				#print type(i.group()),i.span()
+				outfile4.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring(), Read_type])
+				outfile.writerow([record.id,i.group(),i.span()[0],i.span()[1],record.seq.tostring()[:i.span()[0]],record.seq.tostring(), Read_type])
+				SeqIO.write(SeqRecord_gernerator("IGL_"+record.id, record.seq.tostring()[:], Read_type), cut_berfore_UMI_fasta, "fasta")
+	
 		
 def caculate_UMI(fname):
 	infile = csv.reader(open("%s"%fname,'rU'),delimiter = '\t')
@@ -390,23 +323,27 @@ if __name__=='__main__':
 	
 	#"""
 	#Step 3: detect UMI, split file across UMI 
+	pool_size = multiprocessing.cpu_count()
+	p1 = Pool(processes = pool_size-1)
+	manager = Manager()
+	#semaphore = Semaphore(16)
+	#print help(manager.dict())
+	#sys.exit(0)
 	recombanation_info_file = "%s/%s_get_recombanation_info.txt"%(prj_tree.igblast_data, prj_name)
 	recombanation_info_dict = load_recombanation_info_dict(recombanation_info_file)
-	p1 = Pool(16)
-	files_num = 636
-	for f_index in range(1, files_num+1):
-		handle = "%s/%s_%s.fasta"%(prj_tree.split, prj_name, f_index)
-	#infiles = glob.glob("%s/%s*.fasta"%(prj_tree.split, prj_name))
-	#for handle in infiles:
+	shared_dict = manager.dict(recombanation_info_dict)
+	infiles = glob.glob("%s/%s*.fasta"%(prj_tree.split, prj_name))
+	for handle in infiles:
 		fname = retrieve_name_body(handle)
 		print "Searching...%s"%fname
 		#get_primer(handle)
 		#get_primer_and_cut_before_UMI(handle, recombanation_info_dict)
-		p1.apply_async(get_primer_and_cut_before_UMI, args=(handle, recombanation_info_dict, ))
+		p1.apply_async(get_primer_and_cut_before_UMI, args=(handle, shared_dict))
 
 	print "Waiting for all subprocesses done..."
 	p1.close()
 	p1.join()
+	os.system("cat %s/%s*_cut_before_UMI.fasta >  %s/%s_cut_before_UMI.fasta"%(prj_tree.tmp, prj_name, prj_tree.origin, prj_name))
 	print 'Detect primer: All subprocesses done.'
 	#"""
 	

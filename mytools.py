@@ -577,35 +577,7 @@ def load_primer(f):
 #
 # -- BEGIN -- IgBLAST methods
 #
-def prepare_IgBLAST_jobs(prj_name, prj_tree):
-	"""
-	prepare files for each of the fasta files todo IgBLAST
-	"""
-	
-	# load all fasta files in split folder
-	infiles = glob.glob("%s/%s_*.fasta" %(prj_tree.split, prj_name))
-	infile_number = len(infiles)
-	
-	for infile in infiles:
-		head, tail 	= os.path.splitext(infile)
-		f_ind 		= head.split("_")[ -1 ]
-		handle = open("%s/IgBLAST_%s.sh" %(prj_tree.jobs,f_ind), "w")
-		handle.write("#!/bin/bash\n")
-		handle.write("#BSUB -J %s_%s\n" %(prj_name,f_ind))
-		handle.write("#BSUB -n 1\n")
-		#handle.write("#BSUB -n %s\n"%(infile_number*4))
-		handle.write("#BSUB -R %s\n"%("\"span[ptile=1]\""))
-		handle.write("#BSUB -o output_%J\n")
-		handle.write("#BSUB -e errput_%J\n")
-		handle.write("#BSUB -q cpu\n")
-		handle.write("igblastn -germline_db_V ./Igblast_database/IgBLAST_database/20150429-human-gl-v -germline_db_J \
-		./Igblast_database/IgBLAST_database/20150429-human-gl-j -germline_db_D ./Igblast_database/IgBLAST_database/20150429-human-gl-d \
-		-organism human -domain_system imgt -query %s -auxiliary_data optional_file/human_gl.aux \
-		-outfmt '7 qseqid sseqid pident length mismatch gapopen gaps qstart qend sstart send evalue \
-		bitscore qlen slen qseq sseq score frames qframe sframe positive ppos btop staxids stitle \
-		sstrand qcovs qcovhsp' -num_alignments_V 1 -num_alignments_D 1 -num_alignments_J 1 -out \
-		%s/IgBLAST_result_%s.txt &"%(infile, prj_tree.igblast_data, f_ind))
-		handle.close()
+
 
 #
 # -- END -- IgBLAST methods
@@ -1418,22 +1390,7 @@ def do_clustalw(file_for_clustalw):
 		in_file = in_file.replace('*','\*')
 		clustalw_cline = ClustalwCommandline(clustalw_exe, infile=in_file)
 		stdout, stderr = clustalw_cline()
-def prepare_clustal_jobs_normal(prj_name, prj_tree, UMI_length):
-	clustal_fastas = glob.glob("%s/%s_*_cut_berfore_UMI%s_in_group.fasta"%(prj_tree.clustal_fasta, prj_name, UMI_length))
-	for infile in clustal_fastas:
-		head, tail 	= os.path.splitext(infile)
-		barcode 	= head.split("/")[-1].split("_")[4]
-		handle = open("%s/clustal_%s.sh" %(prj_tree.jobs, barcode), "w")
-		handle.write("#!/bin/bash\n")
-		handle.write("#BSUB -J %s_%s\n" %(prj_name, barcode))
-		handle.write("#BSUB -n 1\n")
-		#handle.write("#BSUB -n %s\n"%(infile_number*4))
-		handle.write("#BSUB -R %s\n"%("\"span[ptile=1]\""))
-		handle.write("#BSUB -o output_%J\n")
-		handle.write("#BSUB -e errput_%J\n")
-		handle.write("#BSUB -q cpu\n")
-		handle.write("/zzh_gpfs/apps/clustalw-2.1-linux-x86_64-libcppstatic/clustalw2 -infile=%s &"%(infile))
-		handle.close()
+
 def do_clustalw_v4(ref, tst, fa_file):
 	#print "write to file...."
 	write_seq2file(ref, tst, fa_file)
