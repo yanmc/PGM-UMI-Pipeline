@@ -757,7 +757,19 @@ def load_fastas_in_list(f, l):
 
 	print "%d loaded...." %len(result)
 	return result
+
+def load_fastas_in_list_v2(f, l):
 	
+	print "loading reads from %s as in given list..." %f
+	reader, result = SeqIO.parse(open(f, "rU"), "fasta"), dict()
+
+	for entry in reader:
+		if entry.id.split("_")[-1] in l:
+			
+			result[entry.id] = entry
+
+	print "%d loaded...." %len(result)
+	return result	
 def load_fastas_in_set(f, s):
 	print "loading reads from %s as in given set..." %f
 	reader, dict_reads, good = SeqIO.parse(open(f, "rU"), "fasta"), dict(), 0

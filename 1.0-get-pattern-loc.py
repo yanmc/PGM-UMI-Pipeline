@@ -245,13 +245,10 @@ def get_assignment_and_recombanation_info(infile):
 				writer.writerow(b_j)
 		
 		if hit:
-			#line = line[0].strip('1:N:0:1')
-			line = line[0].strip('1:N:0:8')
-			#line = line[0].strip('1:N:0:5')
-			line = [':'.join(line.split(":")[1:])]
-			line[0].replace(" ", "")
-			result.append(line)
-		if len(line) >= 7: 
+			con = [':'.join(con.split(":")[1:])]
+			con[0].replace(" ", "")
+			result.append(con)
+		if len(line) >= 7:
 			if line[-1] == '+' or line[-1] == '-':
 				result[-1].extend(line)
 	writer2.writerows(result)
@@ -304,9 +301,13 @@ if __name__=='__main__':
 	'''
 	
 	"""
+	pool_size = multiprocessing.cpu_count()
+	os.system("rm %s/IgBLAST_result_*get_assignment_info.txt"%(prj_tree.igblast_data))
+	os.system("rm %s/IgBLAST_result_*get_recombanation_info.txt"%(prj_tree.igblast_data))
 	igblast_result_files = glob.glob("%s/IgBLAST_result_*.txt"%(prj_tree.igblast_data))
-	pool = Pool()
+	pool = Pool(processes = pool_size-1)
 	for igblast_result_file in igblast_result_files:
+		
 		#get_assignment_and_recombanation_info(igblast_result_file)
 		pool.apply_async(get_assignment_and_recombanation_info, args=(igblast_result_file,))
 	print "Waiting for all subprocesses done..."
@@ -350,7 +351,8 @@ if __name__=='__main__':
 	'''
 	#Step 4
 	infiles = glob.glob("%s/%s*-get-primer"%(prj_tree.data,prj_name))
-	p3 = Pool()
+	pool_size = multiprocessing.cpu_count()
+	p3 = Pool(processes = pool_size-1)
 	for handle in infiles:
 		fname, suffix = os.path.splitext(handle)
 		#caculate_UMI(fname)

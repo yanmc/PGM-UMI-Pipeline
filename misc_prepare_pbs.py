@@ -38,12 +38,12 @@ def bsub_jobs(job):
 def check_jobs_done(prj_name, prj_tree, app, igblast_job_ids):
 	log_file = "%s/%s_pbs.log"%(prj_tree.logs, app)
 	log_file_handle = open(log_file, "w")
-	for igblast_job_id in igblast_job_ids:
+	for index, igblast_job_id in enumerate(igblast_job_ids):
 		while os.path.exists("%s/output_%s"%(prj_tree.jobs, igblast_job_id)) == False:
 			log_file_handle.write("Waiting for job_%s...%s\n"%(igblast_job_id,time.ctime()))
 			time.sleep(10)
 		
-		errput, output = "%s/errput_%s"%(prj_tree.jobs, igblast_job_id), "%s/output_%s"%(prj_tree.home, igblast_job_id)
+		errput, output = "%s/errput_%s"%(prj_tree.jobs, igblast_job_id), "%s/output_%s"%(prj_tree.jobs, igblast_job_id)
 		IgBLAST_log = True
 		while IgBLAST_log:
 			output_log = open(output, "rU")
@@ -56,6 +56,7 @@ def check_jobs_done(prj_name, prj_tree, app, igblast_job_ids):
 					os.system("rm %s"%(errput))
 					os.system("rm %s"%(output))
 			output_log.close()
+		#igblast_job_ids.pop(index)
 
 def prepare_justfy_primer_and_group_pbs(prj_name, prj_tree, pickle_file):
 	head, tail 	= os.path.splitext(pickle_file)
@@ -71,8 +72,8 @@ def prepare_justfy_primer_and_group_pbs(prj_name, prj_tree, pickle_file):
 	handle.write("#BSUB -q cpu\n")
 	handle.write("python ./2.1-justfy-primer-and-group.py -i %s &"%(pickle_file))
 	handle.close()
-def prepare_clustal_jobs_normal(prj_name, prj_tree, UMI_length):
-	clustal_fastas = glob.glob("%s/%s_*_cut_berfore_UMI%s_in_group.fasta"%(prj_tree.clustal_fasta, prj_name, UMI_length))
+def prepare_clustal_jobs_normal(prj_name, prj_tree, UMI_length, group_type):
+	clustal_fastas = glob.glob("%s/%s_*_cut_berfore_UMI%s_%s.fasta"%(prj_tree.clustal_fasta, prj_name, UMI_length, group_type))
 	for infile in clustal_fastas:
 		head, tail 	= os.path.splitext(infile)
 		barcode 	= head.split("/")[-1].split("_")[4]
