@@ -55,9 +55,25 @@ def check_jobs_done(prj_name, prj_tree, app, igblast_job_ids):
 					#os.system("mv %s %s"%(output, prj_tree.logs))
 					os.system("rm %s"%(errput))
 					os.system("rm %s"%(output))
+					return 0
 			output_log.close()
+
 		#igblast_job_ids.pop(index)
 
+def prepare_cdhit_nucle_pbs(prj_name, prj_tree, fasta_file, round_index):
+	head, tail 	= os.path.splitext(fasta_file)
+	barcode 	= head.split("/")[-1].split("_")[4]
+	handle = open("%s/prepare_cdhit_nucle_pbs_%s_%s.sh" %(prj_tree.jobs, barcode, round_index), "w")
+	handle.write("#!/bin/bash\n")
+	handle.write("#BSUB -J %s_%s_%s\n" %("prepare_cdhit_nucle_pbs", barcode, round_index))
+	handle.write("#BSUB -n 1\n")
+	#handle.write("#BSUB -n %s\n"%(infile_number*4))
+	handle.write("#BSUB -R %s\n"%("\"span[ptile=1]\""))
+	handle.write("#BSUB -o %s/output_%%%s\n"%(prj_tree.jobs, "J"))
+	handle.write("#BSUB -e %s/errput_%%%s\n"%(prj_tree.jobs, "J"))
+	handle.write("#BSUB -q cpu\n")
+	handle.write("cd-hit-est -i %s -o %s_%s -c 0.95 -n 10 -d 0 -M 0 -T 8 -g 1 -p 1 &"%(fasta_file, head, round_index))
+	handle.close()
 def prepare_justfy_primer_and_group_pbs(prj_name, prj_tree, pickle_file):
 	head, tail 	= os.path.splitext(pickle_file)
 	barcode 	= head.split("/")[-1].split("_")[-1]

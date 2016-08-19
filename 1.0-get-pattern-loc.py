@@ -11,6 +11,7 @@ Usage: misc-get-pattern-loc.py -i infile -r referencefile -o outfile
 
 """
 import sys, os, csv, re, glob, copy, subprocess, time, multiprocessing
+import traceback, tempfile
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
