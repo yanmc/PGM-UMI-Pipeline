@@ -15,7 +15,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from multiprocessing import Pool, Process, Manager
-from bsub import bsub
+#from bsub import bsub
 from mytools import *
 from misc_prepare_pbs import *
 try:
@@ -53,9 +53,8 @@ def check_jobs_done(prj_name, prj_tree, app, igblast_job_ids):
 					IgBLAST_log = False
 					#os.system("mv %s %s"%(errput, prj_tree.logs))
 					#os.system("mv %s %s"%(output, prj_tree.logs))
-					os.system("rm %s"%(errput))
-					os.system("rm %s"%(output))
-					return 0
+					#os.system("rm %s"%(errput))
+					#os.system("rm %s"%(output))
 			output_log.close()
 
 		#igblast_job_ids.pop(index)
@@ -89,20 +88,20 @@ def prepare_justfy_primer_and_group_pbs(prj_name, prj_tree, pickle_file):
 	handle.write("python ./2.1-justfy-primer-and-group.py -i %s &"%(pickle_file))
 	handle.close()
 def prepare_clustal_jobs_normal(prj_name, prj_tree, UMI_length, group_type):
-	clustal_fastas = glob.glob("%s/%s_*_cut_berfore_UMI%s_%s.fasta"%(prj_tree.clustal_fasta, prj_name, UMI_length, group_type))
+	clustal_fastas = glob.glob("%s/%s_*_recomb_reads_index*_num*.fasta"%(prj_tree.clustal_fasta, prj_name))
 	for infile in clustal_fastas:
 		head, tail 	= os.path.splitext(infile)
-		barcode 	= head.split("/")[-1].split("_")[4]
-		handle = open("%s/clustal_%s.sh" %(prj_tree.jobs, barcode), "w")
+		fname		= head.split("/")[-1]
+		handle = open("%s/clustal_%s.sh" %(prj_tree.jobs, fname), "w")
 		handle.write("#!/bin/bash\n")
-		handle.write("#BSUB -J %s_%s\n" %(prj_name, barcode))
+		handle.write("#BSUB -J %s_%s\n" %(prj_name, fname))
 		handle.write("#BSUB -n 1\n")
 		#handle.write("#BSUB -n %s\n"%(infile_number*4))
 		handle.write("#BSUB -R %s\n"%("\"span[ptile=1]\""))
 		handle.write("#BSUB -o %s/output_%%%s\n"%(prj_tree.jobs, "J"))
 		handle.write("#BSUB -e %s/errput_%%%s\n"%(prj_tree.jobs, "J"))
 		handle.write("#BSUB -q cpu\n")
-		handle.write("/zzh_gpfs/apps/clustalw-2.1-linux-x86_64-libcppstatic/clustalw2 -infile=%s &"%(infile))
+		handle.write("/zzh_gpfs/apps/clustalw-2.1-linux-x86_64-libcppstatic/clustalw2 -infile=%s  -ITERATION=ALIGNMENT&"%(infile))
 		handle.close()
 
 def prepare_IgBLAST_jobs(prj_name, prj_tree):

@@ -180,6 +180,15 @@ def donothing():
 #
 # -- BEGIN -- General methods
 #
+def get_median(data):
+	data.sort()
+	half = len(data) // 2
+	return (data[half] + data[~half]) / 2
+
+def get_median_v2(data):
+	data.sort()
+	half = len(data) // 2
+	return data[half]
 def number_statistics(per):
 	unique = []
 	for n in per:

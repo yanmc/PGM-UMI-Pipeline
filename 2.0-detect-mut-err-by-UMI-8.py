@@ -150,27 +150,9 @@ if __name__=='__main__':
 			#print "primer:%s, group: %s"%((len(wrong_primer_dict) + len(right_primer_dict)),(len(in_group_dict) + len(notin_group_dict)))
 			writer.writerow([chain_type, barcode, len(in_group_dict), len(notin_group_dict), len(right_primer_dict), len(wrong_primer_dict)])
 	#'''
-	#step3: clustal
-	#'''
-	os.system("rm %s/clustal_*.sh" %(prj_tree.jobs))
-	#UMI_lengths = ["","_6_8","_8"]
-	UMI_lengths = ["_8"]
-	group_type = "in_group"
-	for UMI_length in UMI_lengths:
-		prepare_clustal_jobs_normal(prj_name, prj_tree, UMI_length, group_type)
-	clustal_jobs = glob.glob("%s/clustal_*.sh" %(prj_tree.jobs))
-	clustal_pool = Pool()
-	clustal_jobs_ids = clustal_pool.map_async(bsub_jobs, clustal_jobs).get(int(30*len(clustal_jobs)))
-	print "Cluatal_jobs: %s clustal_job has been submited."%len(clustal_jobs_ids)
 	
-	print "Waiting for all subprocesses done..."
-	clustal_pool.close()
-	clustal_pool.join()
-	check_jobs_done(prj_name, prj_tree, "clustal", clustal_jobs_ids)
-	print 'All subprocesses done.'
-	#'''
 	"""
-	
+	'''#Don't use this module, we think VJ recomb info can't sort diff Bcell which have same UMI
 	#Step 4: detect err
 	group_type = "right_primer"
 	UMI_lengths = ["_8"]
@@ -183,36 +165,65 @@ if __name__=='__main__':
 			recomb_dict[read_id] = (line[1], line[2])
 		if len(line) > 1 and "H" in line[1] :
 			recomb_dict[read_id] = (line[1], line[3])
-	right_primer_fastas = ["/zzh_gpfs02/yanmingchen/HJT-PGM/PGM_UMI_121_20160624/clustal_fasta/PGM_UMI_121_20160624_TTTTTTTT_cut_berfore_UMI_8_right_primer.fasta"]
-	#clustal_alns = glob.glob("%s/%s_*_cut_berfore_UMI%s_%s.aln" %(prj_tree.clustal_fasta, prj_name, UMI_length,  group_type))
+	#right_primer_fastas = ["/zzh_gpfs02/yanmingchen/HJT-PGM/PGM_UMI_121_20160624/clustal_fasta/PGM_UMI_121_20160624_TTTTTTTT_cut_berfore_UMI_8_right_primer.fasta"]
+	right_primer_fastas = glob.glob("%s/%s_*_cut_berfore_UMI%s_%s.fasta" %(prj_tree.clustal_fasta, prj_name, UMI_length,  group_type))
 	for right_primer_fasta in right_primer_fastas:
 		print "Processing %s " %right_primer_fasta
-		split_same_recomb_reads_dict = {}
 		umi = right_primer_fasta.split("/")[-1].split("_")[4]
+		same_umi_recomb_reads_outfile = csv.writer(open("%s/%s_%s_recomb_reads.txt"%(prj_tree.clustal_fasta, prj_name, umi),"w"), delimiter = "\t")
+		same_umi_recomb_reads_outfile.writerow(["Index_num", "reads_num", "V", "J", "reads_ids"])
+		split_same_recomb_reads_dict = {}
 		right_primer_fasta_dict = SeqIO.index(right_primer_fasta, "fasta")
 		for record in right_primer_fasta_dict.values():
 			record_id = record.id.split("_")[-1]
 			split_same_recomb_reads_dict.setdefault(recomb_dict[record_id], []).append(record.id)
 			
 		for index, (VJ_recomb, same_recomb_reads_ids) in enumerate(split_same_recomb_reads_dict.items()):
-			same_umi_recomb_reads_outfile = csv.writer(open("%s/%s_%s_recomb_reads_index%s_num%s.txt"%(prj_tree.clustal_fasta, prj_name, umi, index, len(same_recomb_reads_ids)),"w"), delimiter = "\t")
+			
 			same_umi_recomb_reads_fasta_outfile = open("%s/%s_%s_recomb_reads_index%s_num%s.fasta"%(prj_tree.clustal_fasta, prj_name, umi, index, len(same_recomb_reads_ids)),"w")
 			#result = list(VJ_reomb.extend(same_recomb_reads_ids)
 			VJ_recomb_list = list(VJ_recomb)
-			same_umi_recomb_reads_outfile.writerow(VJ_recomb_list + same_recomb_reads_ids)
+			same_umi_recomb_reads_outfile.writerow([index, len(same_recomb_reads_ids)] + VJ_recomb_list + same_recomb_reads_ids)
 			for reads_id in  same_recomb_reads_ids:
 				SeqIO.write(right_primer_fasta_dict[reads_id], same_umi_recomb_reads_fasta_outfile, "fasta")
-	"""
-	#group_type = "right_primer"
-	group_type = "in_group"
+	'''
+	
+	
+	#step3: clustal
+	'''
+	os.system("rm %s/clustal_*.sh" %(prj_tree.jobs))
+	group_type = "right_primer"
 	UMI_lengths = ["_8"]
 	UMI_length = "_8"
-	#clustal_alns = ["/zzh_gpfs02/yanmingchen/HJT-PGM/PGM_UMI_121_20160624/clustal_fasta/PGM_UMI_121_20160624_TTTTTTTA_cut_berfore_UMI_8_in_group.aln"]
-	clustal_alns = glob.glob("%s/%s_*_cut_berfore_UMI%s_%s.aln" %(prj_tree.clustal_fasta, prj_name, UMI_length,  group_type))
+	for UMI_length in UMI_lengths:
+		prepare_clustal_jobs_normal(prj_name, prj_tree, UMI_length, group_type)
+	clustal_jobs = glob.glob("%s/clustal_*.sh" %(prj_tree.jobs))
+	clustal_pool = Pool()
+	clustal_jobs_ids = clustal_pool.map_async(bsub_jobs, clustal_jobs).get(int(30*len(clustal_jobs)))
+	print "Cluatal_jobs: %s clustal_job has been submited."%len(clustal_jobs_ids)
+	
+	print "Waiting for all subprocesses done..."
+	clustal_pool.close()
+	clustal_pool.join()
+	check_jobs_done(prj_name, prj_tree, "clustal", clustal_jobs_ids)
+	print 'All subprocesses done.'
 	'''
+	#"""
+
+	#Step4: Consensus sequence
+	
+	#"""# No use vdj assign information
+	group_type = "right_primer"
+	UMI_lengths = ["_8"]
+	UMI_length = "_8"
+	clustal_alns = ["/zzh_gpfs02/yanmingchen/HJT-PGM/PGM_UMI_121_20160624/clustal_fasta/PGM_UMI_121_20160624_TTTTTTTA_cut_berfore_UMI_8_in_group.aln"]
+	#clustal_alns = glob.glob("%s/%s_*_cut_berfore_UMI%s_%s.aln" %(prj_tree.clustal_fasta, prj_name, UMI_length,  group_type))
+	#'''
 	#Step1: Consensus sequence
 	consensus_seq_fasta, consensus_seq_num = open("%s/%s_cut_berfore_UMI%s_%s_consensus.fasta"%(prj_tree.analysis, prj_name, UMI_length,  group_type), "w"), 0
 	consensusX_seq_fasta, consensusX_seq_num = open("%s/%s_cut_berfore_UMI%s_%s_consensusX.fasta"%(prj_tree.analysis, prj_name, UMI_length,  group_type), "w"), 0
+	consensusX_trim_seq_fasta, consensusX_trim_seq_num = open("%s/%s_cut_berfore_UMI%s_%s_consensusX_trim.fasta"%(prj_tree.analysis, prj_name, UMI_length,  group_type), "w"), 0
+
 	for index, clustal_aln in enumerate(clustal_alns):
 		barcode = clustal_aln.split("/")[-1].split("_")[4]
 		if index%100 == 0 :
@@ -221,19 +232,65 @@ if __name__=='__main__':
 			c_align = AlignIO.read(clustal_aln, 'clustal')
 		except ValueError:
 			continue
-		summary_align = AlignInfo.SummaryInfo(c_align)
-		consensus_seq = summary_align.dumb_consensus(consensus_alpha = Bio.Alphabet.IUPAC.IUPACAmbiguousDNA)
-		consensus = SeqRecord_gernerator("%s_%s_%s"%(prj_name, barcode, index), str(consensus_seq), "")
-		
-		#print consensus_seq
+		sorted_reads_number = 0
+		while len(c_align) - sorted_reads_number >= 3:
+			remain_c_align = c_align[sorted_reads_number : ]
+			summary_align = AlignInfo.SummaryInfo(remain_c_align)
+			consensus_seq = summary_align.dumb_consensus(consensus_alpha = Bio.Alphabet.IUPAC.IUPACAmbiguousDNA)
+			consensus_seq = str(consensus_seq)
+			my_pssm = summary_align.pos_specific_score_matrix(consensus_seq)
+
+			summary_align = AlignInfo.SummaryInfo(c_align[0:86])
+			consensus_seq = summary_align.dumb_consensus(consensus_alpha = Bio.Alphabet.IUPAC.IUPACAmbiguousDNA)
+			consensus_seq = str(consensus_seq)
+			my_pssm = summary_align.pos_specific_score_matrix(consensus_seq)
+
+			zs = zip(consensus_seq,my_pssm)
+			nucle_percent_list = []
+			for index,(ref_nucle, pssm_nums) in enumerate(zs):
+				#print pssm_nums.keys()  #['A', 'C', '-', 'T', 'G']
+
+				line = pssm_nums.values()
+				line.insert(0, ref_nucle)
+				pssm_num_sorted = sorted(pssm_nums.items(), key=lambda d: d[1], reverse=True)
+				consensus_max_nule = pssm_num_sorted[0][0]
+				consensus_seq = consensus_seq[:index] + consensus_max_nule + consensus_seq[index+1:]
+				nucle_percent = pssm_nums[consensus_max_nule]/sum(pssm_nums.values()) *100
+				nucle_percent_list.append(nucle_percent)
+			first200_position = 0
+			for index, item in enumerate(consensus_seq):
+				if item != "-":
+					first200_position += 1
+				if first200_position == 200:
+					consensus_seq = consensus_seq[:index+1]
+					nucle_percent_list = nucle_percent_list[:index+1]
+
+			nucle_percent_median = get_median_v2(nucle_percent_list)
+			nucle_percent_median_index = nucle_percent_list.index(nucle_percent_median)
+			percent_list_40 = nucle_percent_list[nucle_percent_median_index-20: nucle_percent_median_index+20]
+			reads_number = sum(percent_list_40)/float(len(percent_list_40))
+			reads_number = int(round(reads_number))
+			sorted_reads_align = remain_c_align[0:reads_number]
+			for index, item in enumerate(sorted_reads_align):
+				print index, item
+				
+			sorted_reads_number += reads_number
+			print reads_number
+			sys.exit(0)
+		while consensus_seq.startswith('X'):
+			consensus_seq = consensus_seq[1:]
+		while consensus_seq.endswith('X'):
+			consensus_seq = consensus_seq[:-1]
 		if "X" not in consensus_seq:
-			SeqIO.write(consensus, consensus_seq_fasta, "fasta")
-			consensus_seq_num += 1
+			consensus = SeqRecord_gernerator("%s_%s_%s"%(prj_name, barcode, VJ_recomb_index + "_" + reads_depth), str(consensus_seq), "")
+			SeqIO.write(consensus, consensusX_trim_seq_fasta, "fasta")
+			consensusX_trim_seq_num += 1
 		else:
+			consensus = SeqRecord_gernerator("%s_%s_%s"%(prj_name, barcode, VJ_recomb_index + "_" + reads_depth), str(consensus_seq), "")
 			SeqIO.write(consensus, consensusX_seq_fasta, "fasta")
 			consensusX_seq_num += 1
-	print consensus_seq_num, consensusX_seq_num, len(clustal_alns)
-	'''
+		
+		'''
 	#Step2: Error
 	for index, clustal_aln in enumerate(clustal_alns):
 		barcode = clustal_aln.split("/")[-1].split("_")[4]
@@ -290,10 +347,11 @@ if __name__=='__main__':
 					else:
 						outfile2.writerow([index,'Mutation',i,j])
 		#if len(c_align) >= 3 and len(c_align) <= 10:
-	
+	'''
 	
 	
 	#Step 4: detect err
+	'''
 	group_type = "in_group"
 	UMI_lengths = ["_8"]
 	UMI_length = "_8"
@@ -338,5 +396,6 @@ if __name__=='__main__':
 					outfile2.writerow([index,'Deletion',i,j])
 				else:
 					outfile2.writerow([index,'Mutation',i,j])
-	"""
+	'''
+	#"""
 	
