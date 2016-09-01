@@ -6,6 +6,22 @@ common_info.py
 Created by Zhenhai Zhang on 2011-04-06.
 Copyright (c) 2011 Columbia University and Vaccine Research Center, National Institutes of Health, USA. All rights reserved.
 """
+UMI_length = int(8)
+
+IGG_primer = 'AAGACCGATGGGCCCTTGGTGGA'
+IGK_primer = 'AAGACAGATGGTGCAGCCACAGTTC'
+IGM_primer = 'AAGGGTTGGGGCGGATGCACTCC'
+IGL_primer = 'CCTTGTTGGCTTG(A|G)AGCTCCTCAGAGGAGG'
+
+
+primer_len_dict = {
+	"IGG" : int(len(IGG_primer)),
+	"IGK" : int(len(IGK_primer)),
+	"IGM" : int(len(IGM_primer)),
+	"IGL" : int(len(IGL_primer)-4),
+	"No_type" : int(0),
+	}
+
 
 ORG_FOLDER = "origin"
 FILTERED_FOLDER="filtered"

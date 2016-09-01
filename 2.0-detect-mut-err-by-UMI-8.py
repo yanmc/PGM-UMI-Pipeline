@@ -28,6 +28,22 @@ except ImportError:
     import pickle
 
 
+def prepare_clustal_jobs_normal(prj_name, prj_tree, UMI_length, group_type):
+	clustal_fastas = glob.glob("%s/%s_*_cut_berfore_UMI%s_%s_IG*_trim_at_Jend.fasta"%(prj_tree.clustal_fasta, prj_name, UMI_length, group_type))
+	for infile in clustal_fastas:
+		head, tail 	= os.path.splitext(infile)
+		fname		= head.split("/")[-1]
+		handle = open("%s/clustal_%s.sh" %(prj_tree.jobs, fname), "w")
+		handle.write("#!/bin/bash\n")
+		handle.write("#BSUB -J %s_%s\n" %(prj_name, fname))
+		handle.write("#BSUB -n 1\n")
+		#handle.write("#BSUB -n %s\n"%(infile_number*4))
+		handle.write("#BSUB -R %s\n"%("\"span[ptile=1]\""))
+		handle.write("#BSUB -o %s/output_%%%s\n"%(prj_tree.jobs, "J"))
+		handle.write("#BSUB -e %s/errput_%%%s\n"%(prj_tree.jobs, "J"))
+		handle.write("#BSUB -q cpu\n")
+		handle.write("/zzh_gpfs/apps/clustalw-2.1-linux-x86_64-libcppstatic/clustalw2 -infile=%s  -ITERATION=ALIGNMENT&"%(infile))
+		handle.close()
 def cdhit_right_reads(right_primer_fasta):
 	head, tail 	= os.path.splitext(right_primer_fasta)
 	barcode 	= head.split("/")[-1].split("_")[4]
@@ -75,8 +91,8 @@ if __name__=='__main__':
 	
 	prj_name = fullpath2last_folder(prj_tree.home)
 	pool_size = multiprocessing.cpu_count()
-	"""
-	#'''
+
+	'''
 	# Step1: Split same UMI 8 reads to same file
 	os.system("rm %s/justfy_primer_and_group_*.sh" %(prj_tree.jobs))
 	os.system("rm %s/errput*" %(prj_tree.jobs))
@@ -119,39 +135,45 @@ if __name__=='__main__':
 	pool.join()
 	check_jobs_done(prj_name, prj_tree, "justfy_primer_and_group", pjobs_ids)
 	print 'All subprocesses done.'
-	#'''
+	'''
 	
-	#'''
-	#Step2: caculate composition of group
+	'''
+	#Step2: Split composition of right primer
 	UMI_lengths = ["_8"]
 	for UMI_length in UMI_lengths:
-		writer = csv.writer(open("%s/%s_cut_berfore_UMI%s_group_composition.txt"%(prj_tree.figure, prj_name, UMI_length), "w"), delimiter = "\t")
-		writer.writerow(["Chain type","Barcode", "#in group","#notin group","#right primer","#wrong primer","#Total group","#Total primer"])
-		in_group_files     = glob.glob("%s/%s_*_cut_berfore_UMI%s_in_group.fasta"%(prj_tree.clustal_fasta, prj_name, UMI_length))
-		for index, in_group_file in enumerate(in_group_files):
+		#right_primer_files = ["/zzh_gpfs02/yanmingchen/HJT-PGM/PGM_UMI_121_20160624/clustal_fasta/PGM_UMI_121_20160624_TTTTTAGA_cut_berfore_UMI_8_right_primer.fasta"]
+		right_primer_files     = glob.glob("%s/%s_*_cut_berfore_UMI%s_right_primer.fasta"%(prj_tree.clustal_fasta, prj_name, UMI_length))
+		for index, right_primer_file in enumerate(right_primer_files):
 			if index % 1000 == 0:
-				print "Processing %s ..."%in_group_file
-			
-			barcode = in_group_file.split("/")[-1].split("_")[4]
-			notin_group_file  = "%s/%s_%s_cut_berfore_UMI%s_notin_group.fasta"%(prj_tree.clustal_fasta, prj_name, barcode, UMI_length)
-			right_primer_file = "%s/%s_%s_cut_berfore_UMI%s_right_primer.fasta"%(prj_tree.clustal_fasta, prj_name, barcode, UMI_length)
-			wrong_primer_file = "%s/%s_%s_cut_berfore_UMI%s_wrong_primer.fasta"%(prj_tree.clustal_fasta, prj_name, barcode, UMI_length)
-			in_group_dict = SeqIO.index(in_group_file, "fasta")
-			notin_group_dict = SeqIO.index(notin_group_file, "fasta")
+				print "Processing %s ..."%right_primer_file
+			barcode = right_primer_file.split("/")[-1].split("_")[4]
 			right_primer_dict = SeqIO.index(right_primer_file, "fasta")
-			wrong_primer_dict = SeqIO.index(wrong_primer_file, "fasta")
-			try:
-				chain_type = str([x for x in in_group_dict.keys()][0]).split("_")[0]
-			except:
-				chain_type = "No_type"
-			if (len(wrong_primer_dict) + len(right_primer_dict)) != (len(in_group_dict) + len(notin_group_dict)):
-				print "Warning!","primer:%s, group: %s"%((len(wrong_primer_dict) + len(right_primer_dict)),(len(in_group_dict) + len(notin_group_dict)))
-				#sys.exit(0)
-			#print "primer:%s, group: %s"%((len(wrong_primer_dict) + len(right_primer_dict)),(len(in_group_dict) + len(notin_group_dict)))
-			writer.writerow([chain_type, barcode, len(in_group_dict), len(notin_group_dict), len(right_primer_dict), len(wrong_primer_dict)])
-	#'''
+			chain_type_record, reads_id_record = [], []
+			for record in sorted(right_primer_dict.keys()):
+				try:
+					chain_type = record.split("_")[0]
+				except:
+					chain_type = "No_type"
+				if chain_type not in chain_type_record:
+					chain_type_record.append(chain_type)
+					reads_id_record.append([record])
+				else:
+					chain_type_index = chain_type_record.index(chain_type)
+					reads_id_record[chain_type_index].append(record)
+			
+			if UMI_length == "_8":
+				UMI_length_value = 8
+			else:
+				print "Warning! you should set UMI length!"
+			chain_type_record_zip = zip(chain_type_record, reads_id_record)
+			for (chain_type, reads_id_list) in chain_type_record_zip:
+				right_primer_file_chain_type = open("%s/%s_%s_cut_berfore_UMI%s_right_primer_%s_trim_at_Jend.fasta" %(prj_tree.clustal_fasta, prj_name, barcode, UMI_length, chain_type), "w")
+				for read_id in reads_id_list:
+					SeqIO.write(right_primer_dict[read_id][UMI_length_value + primer_len_dict[chain_type] : ], right_primer_file_chain_type, "fasta")
+				
+	'''
 	
-	"""
+
 	'''#Don't use this module, we think VJ recomb info can't sort diff Bcell which have same UMI
 	#Step 4: detect err
 	group_type = "right_primer"
@@ -187,11 +209,13 @@ if __name__=='__main__':
 			for reads_id in  same_recomb_reads_ids:
 				SeqIO.write(right_primer_fasta_dict[reads_id], same_umi_recomb_reads_fasta_outfile, "fasta")
 	'''
-	
+	#right_primer_fastas = glob.glob("%s/%s_*_cut_berfore_UMI%s_%s.fasta" %(prj_tree.clustal_fasta, prj_name, UMI_length,  group_type))
 	
 	#step3: clustal
 	#'''
 	os.system("rm %s/clustal_*.sh" %(prj_tree.jobs))
+	os.system("rm %s/errput*" %(prj_tree.jobs))
+	os.system("rm %s/output*" %(prj_tree.jobs))
 	group_type = "right_primer"
 	UMI_lengths = ["_8"]
 	UMI_length = "_8"
@@ -216,7 +240,8 @@ if __name__=='__main__':
 	group_type = "right_primer"
 	UMI_lengths = ["_8"]
 	UMI_length = "_8"
-	clustal_alns = ["/zzh_gpfs02/yanmingchen/HJT-PGM/PGM_UMI_121_20160624/clustal_fasta/PGM_UMI_121_20160624_TTTTTTTA_cut_berfore_UMI_8_right_primer.aln"]
+	clustal_alns = ["/zzh_gpfs02/yanmingchen/HJT-PGM/PGM_UMI_121_20160624/clustal_fasta/PGM_UMI_121_20160624_TTTTTAGA_cut_berfore_UMI_8_right_primer.aln"]
+	#clustal_alns = ["/zzh_gpfs02/yanmingchen/HJT-PGM/PGM_UMI_121_20160624/clustal_fasta/PGM_UMI_121_20160624_TTTTTTTA_cut_berfore_UMI_8_right_primer.aln"]
 	#clustal_alns = glob.glob("%s/%s_*_cut_berfore_UMI%s_%s.aln" %(prj_tree.clustal_fasta, prj_name, UMI_length,  group_type))
 	#'''
 	#Step1: Consensus sequence
@@ -232,10 +257,12 @@ if __name__=='__main__':
 		except ValueError:
 			continue
 		sorted_reads_number,  sorted_reads_index = 0, 0
-		while len(c_align) - sorted_reads_number >= 3:
+		while len(c_align) - sorted_reads_number > 0:
 			sorted_reads_index += 1
 			print "Get a consensus, %s, Computing..."%sorted_reads_index
 			remain_c_align = c_align[sorted_reads_number : ]
+			for record in remain_c_align:
+				print record.id, record.seq[:100]
 			summary_align = AlignInfo.SummaryInfo(remain_c_align)
 			consensus_seq = summary_align.dumb_consensus(consensus_alpha = Bio.Alphabet.IUPAC.IUPACAmbiguousDNA)
 			consensus_seq = str(consensus_seq)
@@ -251,7 +278,7 @@ if __name__=='__main__':
 				pssm_num_sorted = sorted(pssm_nums.items(), key=lambda d: d[1], reverse=True)
 				consensus_max_nule = pssm_num_sorted[0][0]
 				consensus_seq = consensus_seq[:index] + consensus_max_nule + consensus_seq[index+1:]
-				nucle_percent = pssm_nums[consensus_max_nule]/sum(pssm_nums.values())
+				nucle_percent = pssm_nums[consensus_max_nule]/sum(pssm_nums.values())*100
 				nucle_percent_list.append(nucle_percent)
 			first200_position = 0
 			for index, item in enumerate(consensus_seq):
@@ -260,12 +287,17 @@ if __name__=='__main__':
 				if first200_position == 200:
 					consensus_seq = consensus_seq[:index+1]
 					nucle_percent_list = nucle_percent_list[:index+1]
-
-			nucle_percent_median = get_median_v2(nucle_percent_list)
-			nucle_percent_median_index = nucle_percent_list.index(nucle_percent_median)
-			percent_list_40 = nucle_percent_list[nucle_percent_median_index-20: nucle_percent_median_index+20]
-			reads_number = (sum(percent_list_40)/float(len(percent_list_40))) * len(remain_c_align)
-			reads_number = int(round(reads_number))
+			print consensus_seq
+			
+			nucle_percent_median_index = get_median_index(nucle_percent_list)
+			print "nucle_percent_median_index:",nucle_percent_median_index
+			percent_list_40 = sorted(nucle_percent_list,reverse=True)[nucle_percent_median_index-20: nucle_percent_median_index+20]
+			print (float(sum(percent_list_40))/float(len(percent_list_40))), len(remain_c_align)
+			reads_number = math.floor(sum(percent_list_40)/float(len(percent_list_40))) * float(len(remain_c_align)) / 100
+			print "reads_number:",reads_number
+			reads_number = int(reads_number)
+			print "reads_number:",reads_number
+			
 			sorted_reads_align = remain_c_align[0:reads_number]
 			
 			consensus_seq = consensus_seq.replace('-', '')
@@ -279,6 +311,18 @@ if __name__=='__main__':
 			sort_bcells_record.writerow([barcode, sorted_reads_index, consensus_id, reads_number] + record_result)	
 			sorted_reads_number += reads_number
 	"""	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	#end
 	'''
 	#Step2: Error
 	for index, clustal_aln in enumerate(clustal_alns):

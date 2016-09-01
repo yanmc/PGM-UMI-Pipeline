@@ -15,6 +15,7 @@ from Bio.Align.Applications import ClustalwCommandline
 from Bio.Blast import NCBIStandalone
 from math import log
 from itertools import imap
+import math
 
 from numpy import mean, array, zeros, ones, nan, std, isnan
 
@@ -189,6 +190,11 @@ def get_median_v2(data):
 	data.sort()
 	half = len(data) // 2
 	return data[half]
+
+def get_median_index(data):
+	data.sort()
+	half = len(data) // 2
+	return half
 def number_statistics(per):
 	unique = []
 	for n in per:

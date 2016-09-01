@@ -23,6 +23,10 @@ try:
 except ImportError:
     import pickle
 
+def processing_jobs(job):
+	cmd = '%s  %s'%('bash', job)
+	head, tail 	= os.path.splitext(job)	
+	p=subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 def bsub_jobs(job):
 	cmd = '%s <  %s'%('bsub', job)
 	head, tail 	= os.path.splitext(job)	
@@ -87,22 +91,7 @@ def prepare_justfy_primer_and_group_pbs(prj_name, prj_tree, pickle_file):
 	handle.write("#BSUB -q cpu\n")
 	handle.write("python ./2.1-justfy-primer-and-group.py -i %s &"%(pickle_file))
 	handle.close()
-def prepare_clustal_jobs_normal(prj_name, prj_tree, UMI_length, group_type):
-	clustal_fastas = glob.glob("%s/%s_*_recomb_reads_index*_num*.fasta"%(prj_tree.clustal_fasta, prj_name))
-	for infile in clustal_fastas:
-		head, tail 	= os.path.splitext(infile)
-		fname		= head.split("/")[-1]
-		handle = open("%s/clustal_%s.sh" %(prj_tree.jobs, fname), "w")
-		handle.write("#!/bin/bash\n")
-		handle.write("#BSUB -J %s_%s\n" %(prj_name, fname))
-		handle.write("#BSUB -n 1\n")
-		#handle.write("#BSUB -n %s\n"%(infile_number*4))
-		handle.write("#BSUB -R %s\n"%("\"span[ptile=1]\""))
-		handle.write("#BSUB -o %s/output_%%%s\n"%(prj_tree.jobs, "J"))
-		handle.write("#BSUB -e %s/errput_%%%s\n"%(prj_tree.jobs, "J"))
-		handle.write("#BSUB -q cpu\n")
-		handle.write("/zzh_gpfs/apps/clustalw-2.1-linux-x86_64-libcppstatic/clustalw2 -infile=%s  -ITERATION=ALIGNMENT&"%(infile))
-		handle.close()
+
 
 def prepare_IgBLAST_jobs(prj_name, prj_tree):
 	"""
